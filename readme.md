@@ -44,3 +44,37 @@
 
 ![Диаграмма с SSO](diagrams/BionicPRO_C4_with_FI_keycloak.png)
 
+## Задача 2. Улучшите безопасность существующего приложения, заменив Code Grant на PKCE
+
+- во фронте приложения при инициализации Keycloak добавлено `pkceMethod: "S256"` 
+  -  фронт приложения генерирует code_challenge и code_verifier при обращении к keycloak
+     ```js
+        import Keycloak, { KeycloakConfig, KeycloakInitOptions } from 'keycloak-js';
+
+        ...
+
+        const initOptions: KeycloakInitOptions = {
+            pkceMethod: "S256"
+        }
+
+        const keycloak = new Keycloak(keycloakConfig);
+
+        ...
+        <ReactKeycloakProvider authClient={keycloak} initOptions={initOptions}>
+        ...
+   ```  
+-  Конфигурацию самого Keycloak для работы с PKCE можно изменить через GUI админку на вкладке Clients>client-frontend>Advanced
+   - затем сделав на этой вкладке Export конфига, понял, как добавить этот параметр в `realm-export.json`:
+   ```json
+    {
+        "clientId": "reports-frontend",
+        "enabled": true,
+        "publicClient": true,
+        "redirectUris": ["http://localhost:3000/*"],
+        "webOrigins": ["http://localhost:3000"],
+        "directAccessGrantsEnabled": true,
+        "attributes": {
+          "pkce.code.challenge.method": "S256"
+        }
+    },
+   ```                  
