@@ -78,3 +78,90 @@
         }
     },
    ```                  
+
+# Задание 2. Разработка сервиса отчётов
+
+## Задача 1. Создать архитектуру решения для подготовки и получения отчётов.
+
+**Предпосылки**: 
+
+- Огромный объём данных. Изначально у компании была только одна база данных — PostgreSQL. Очень быстро она начала ухудшать показатели работы системы. Команда попробовала использовать индексы, но и это не помогло: слишком большое количество данных начало влиять на остальные таблицы базы. 
+
+
+**Требования**:
+
+-  Решение должно включать в себя ETL-процесс, который объединяет данные с датчиков и данные из CRM, используя Apache Airflow, и формирует готовую витрину отчётности в OLAP БД. Итоговый отчёт по пользователю должен быть доступен через бэкенд-сервис API, который обозначен на исходной архитектуре. 
+
+#### Предлагаемое решение: 
+
+- Предлагается использовать в качестве OLAP базы колоночную ClickHouse
+- сервис отчетов на Python
+- Apache AirFlow с DAG
+
+Предлагаемая схема
+[Диаграмма с SSO](diagrams/BionicPRO_C4_reports.drawio)
+
+Комментарии:
+
+![Диаграмма с SSO](diagrams/BionicPRO_C4_reports.png)
+
+## Задача 2. Разработать Airflow DAG и настроить его на запуск по расписанию
+
+**Реализация**:
+
+1. Для моделирования источников подняты две Postgres базы:
+- **main-db** c таблицей `telemetry` 
+- **crm-db** c таблицей `users`
+
+Данные в них загружаются скриптами при инициализации
+
+2. Также поднят экземпляр **clickhouse**
+
+В ней также при инициализации создаются база `report` и соответсвующие таблицы `users` и `telemetry`  
+
+3. Реализован airflow DAG `postgres_to_clickhouse_ETL`
+
+```python
+   with DAG(
+      'postgres_to_clickhouse_ETL',
+      description='Загрузка данных из main-db таблица telemetry и crm-db таблица users и последующая загрузка данных в clickhouse ',
+      start_date=datetime(2025, 9, 28),
+      schedule=timedelta(minutes=3),
+      catchup=False,
+      default_args={
+         'retries': 5,
+         'retry_delay': timedelta(seconds=10),
+      },
+      tags=['postgres', 'crm-db', 'main-db']
+   ) as dag:
+
+      check_connection_task_main = PythonOperator(
+         task_id='check_connection_main',
+         python_callable=check_main_connection,
+      )
+
+      check_connection_task_crm = PythonOperator(
+         task_id='check_connection_crm',
+         python_callable=check_crm_connection,
+      )
+
+      check_connection_task_clickhouse = PythonOperator(
+         task_id ='test_clickhouse',
+         python_callable = test_clickhouse_connection,
+      )
+
+      load_data_task = PythonOperator(
+         task_id='load_data_to_clickhouse',
+         python_callable=query_and_load_to_clickhouse,
+      )
+
+      check_connection_task_crm >> check_connection_task_main >> check_connection_task_clickhouse >> load_data_task
+```
+
+- он выполняет последовательную проверку доступности баз
+- после чего производит перегрузку данных пришедших со времени последней запаси в соответсвующие clikhouse таблицы
+- запускается с указанной даты каждые три минуты
+
+
+подробности реализации:
+[Реализация ETL DAG](reportSystem\airflow\dags\src\postgres_to_clickhouse.py)
