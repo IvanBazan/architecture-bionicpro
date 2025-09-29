@@ -119,7 +119,22 @@
 
 В ней также при инициализации создаются база `report` и соответсвующие таблицы `users` и `telemetry`  
 
-3. Реализован airflow DAG `postgres_to_clickhouse_ETL`
+3. подянты компоненты airflow
+   - postgres **airflow-db** для метаданных aitflow
+   - **airflow-init** - блок инициализации
+   - **airflow-webserver** - веб сервер
+   - **airflow-scheduler** - планировщик
+
+Отличия от реализации из практики урока: 
+я стал использовать более новый aiflow 3.1
+в нем **airflow-webserver** запускается в `command: standalone` режиме, сам создает админ пользователя со сложносгенерированным паролем
+чтобы его узнать необходимо найти его в логах запуска сервиса. Иначе никак (sic!)
+```bash
+$ docker-compose logs airflow-webserver | grep "Simple auth"
+```
+**airflow-init** скрипт инициализации содержит только миграцию бд
+
+4. Реализован airflow DAG `postgres_to_clickhouse_ETL`
 
 ```python
    with DAG(

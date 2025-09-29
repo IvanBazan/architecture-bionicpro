@@ -55,7 +55,7 @@ services:
       - ./reportSystem/clickhouse/config.d/:/etc/clickhouse-server/config.d/
       - ./reportSystem/clickhouse/users.d/:/etc/clickhouse-server/users.d/
       - ./reportSystem/clickhouse/databases/:/docker-entrypoint-initdb.d/
-      # - ./reportSystem/clickhouse/data/:/var/lib/clickhouse/
+      # - ./reportSystem/clickhouse/data/:/var/lib/clickhouse/    Пришлось закоментить, мучался несколько часов с неработающими INSERT. Оказалось что на windows docker существует проблема с правами на запись для clikhouse. На данный момент нерешенная
       - ./reportSystem/clickhouse/logs/:/var/log/clickhouse-server/
     entrypoint: ["/bin/bash", "/etc/clickhouse-server/config.d/init-entrypoint.sh"]
     environment:
