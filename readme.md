@@ -180,3 +180,20 @@ $ docker-compose logs airflow-webserver | grep "Simple auth"
 
 подробности реализации:
 [Реализация ETL DAG](reportSystem\airflow\dags\src\postgres_to_clickhouse.py)
+
+
+
+## Задача 3. Создайте бэкенд-часть приложения для API
+
+**Решение**:
+
+- Реализован REST API на Python Flask
+- сервис подключается к нашей **clickhouse** базе 
+- у апи реализовано два эндпоинта health и api/reports
+- api/reports:
+  - доступен на `http://localhost:5000/api/reports`
+  - выгружает таблицу с телеметрией по всем пользователям
+
+
+подробности реализации:
+[Реализация reportService](reportSystem\reportService\app.py)
