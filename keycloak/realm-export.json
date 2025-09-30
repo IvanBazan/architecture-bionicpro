@@ -64,45 +64,45 @@
         "realmRoles": ["administrator"]
       },
       {
-        "username": "prothetic1",
+        "username": "maria.sidorova",
         "enabled": true,
-        "email": "prothetic1@example.com",
-        "firstName": "Prothetic",
-        "lastName": "One",
+        "email": "maria.sidorova@bionicpro.com",
+        "firstName": "Мария",
+        "lastName": "Сидорова",
         "credentials": [
           {
             "type": "password",
-            "value": "prothetic123",
+            "value": "password123",
             "temporary": false
           }
         ],
         "realmRoles": ["prothetic_user"]
       },
       {
-        "username": "prothetic2",
+        "username": "alexei.ivanov",
         "enabled": true,
-        "email": "prothetic2@example.com",
-        "firstName": "Prothetic",
-        "lastName": "Two",
+        "email": "alexei.ivanov@bionicpro.com",
+        "firstName": "Алексей",
+        "lastName": "Иванов",
         "credentials": [
           {
             "type": "password",
-            "value": "prothetic123",
+            "value": "password123",
             "temporary": false
           }
         ],
         "realmRoles": ["prothetic_user"]
       },
       {
-        "username": "prothetic3",
+        "username": "ivan.petrov",
         "enabled": true,
-        "email": "prothetic3@example.com",
-        "firstName": "Prothetic",
-        "lastName": "Three",
+        "email": "ivan.petrov@bionicpro.com",
+        "firstName": "Иван",
+        "lastName": "Петров",
         "credentials": [
           {
             "type": "password",
-            "value": "prothetic123",
+            "value": "password123",
             "temporary": false
           }
         ],
