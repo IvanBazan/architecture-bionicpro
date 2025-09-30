@@ -10,7 +10,16 @@ services:
     volumes:
       - ./postgres-keycloak-data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak_user -d keycloak_db"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+    networks:
+      - reportSystem
+
   keycloak:
     image: quay.io/keycloak/keycloak:21.1
     environment:
@@ -20,6 +29,7 @@ services:
       KC_DB_URL: jdbc:postgresql://keycloak_db:5432/keycloak_db
       KC_DB_USERNAME: keycloak_user
       KC_DB_PASSWORD: keycloak_password
+      KC_HEALTH_ENABLED: true
     command: 
       - start-dev
       - --import-realm
@@ -29,6 +39,14 @@ services:
       - "8080:8080"
     depends_on:
       - keycloak_db
+    healthcheck:
+      test: ["CMD", "curl", "--head", "fsS", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - reportSystem
+
   frontend:
     build:
       context: ./frontend
@@ -40,3 +58,194 @@ services:
       REACT_APP_KEYCLOAK_URL: http://localhost:8080
       REACT_APP_KEYCLOAK_REALM: reports-realm
       REACT_APP_KEYCLOAK_CLIENT_ID: reports-frontend
+
+  clickhouse:
+    build:
+      context: ./reportSystem/clickhouse/
+      dockerfile: Dockerfile
+    container_name: clickhouse
+    hostname: clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+      - "9009:9009"
+    volumes:
+      - ./reportSystem/clickhouse/config.d/:/etc/clickhouse-server/config.d/
+      - ./reportSystem/clickhouse/users.d/:/etc/clickhouse-server/users.d/
+      - ./reportSystem/clickhouse/databases/:/docker-entrypoint-initdb.d/
+      # - ./reportSystem/clickhouse/data/:/var/lib/clickhouse/    Пришлось закоментить, мучался несколько часов с неработающими INSERT. Оказалось что на windows docker существует проблема с правами на запись для clikhouse. На данный момент нерешенная
+      - ./reportSystem/clickhouse/logs/:/var/log/clickhouse-server/
+    entrypoint: ["/bin/bash", "/etc/clickhouse-server/config.d/init-entrypoint.sh"]
+    environment:
+      - CLICKHOUSE_DB=default
+      - CLICKHOUSE_USER=admin
+      - CLICKHOUSE_PASSWORD=admin123
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    networks:
+      - reportSystem
+
+  main-db:
+    image: postgres:16.0
+    volumes:
+      - ./bionicpro_databases/mainDB/data:/var/lib/postgresql/data
+      - ./bionicpro_databases/mainDB/init:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: app_password
+      POSTGRES_DB: main_db
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d main_db"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+    networks:
+      - reportSystem
+  
+  crm-db:
+    image: postgres:16.0
+    volumes:
+      - ./bionicpro_databases/crmDB/data:/var/lib/postgresql/data
+      - ./bionicpro_databases/crmDB/init:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: app_password
+      POSTGRES_DB: main_db
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d main_db"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+    networks:
+      - reportSystem
+      
+  airflow-db:
+    image: postgres:16.0
+    volumes:
+      - ./reportSystem/airflow/db/data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+    networks:
+      - reportSystem
+
+  airflow-init:
+    build:
+      context: ./reportSystem/airflow/
+      dockerfile: Dockerfile
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=true
+    volumes:
+      - ./reportSystem/airflow/dags/src:/opt/airflow/dags
+      - ./reportSystem/airflow/logs:/opt/airflow/logs
+      - ./reportSystem/airflow/plugins:/opt/airflow/plugins
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+    command: |
+      bash -c "
+        airflow db migrate
+      "
+    networks:
+      - reportSystem
+
+  airflow-webserver:
+    build:
+      context: ./reportSystem/airflow/
+      dockerfile: Dockerfile
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=true
+    volumes:
+      - ./reportSystem/airflow/dags/src:/opt/airflow/dags
+      - ./reportSystem/airflow/logs:/opt/airflow/logs
+      - ./reportSystem/airflow/plugins:/opt/airflow/plugins
+    ports:
+      - "8081:8080"
+    command: standalone
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8081/api/v2/monitor/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - reportSystem
+
+  airflow-scheduler:
+    build:
+      context: ./reportSystem/airflow/
+      dockerfile: Dockerfile
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+    volumes:
+      - ./reportSystem/airflow/dags/src:/opt/airflow/dags
+      - ./reportSystem/airflow/logs:/opt/airflow/logs
+      - ./reportSystem/airflow/plugins:/opt/airflow/plugins
+    command: scheduler
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+      airflow-webserver:
+        condition: service_healthy
+    networks:
+      - reportSystem
+
+  report-service:
+    build:
+      context: ./reportSystem/reportService/
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - clickhouse
+    networks:
+      - reportSystem
+
+
+networks:
+  reportSystem:
+    driver: bridge
