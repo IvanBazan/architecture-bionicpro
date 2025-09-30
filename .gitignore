@@ -1,2 +1,13 @@
+.vscode
+/bionicpro_databases/crmDB/data
+/bionicpro_databases/mainDB/data
 /postgres-keycloak-data
+/reportSystem/airflow/db/data
+/reportSystem/clickhouse/data
+/reportSystem/clickhouse/logs
+/reportSystem/airflow/dags/airflow_venv
+/reportSystem/airflow/dags/src/__pycache__
+/reportSystem/airflow/dags/__pycache__
+/reportSystem/airflow/logs
+/reportSystem/reportService/venv
 2024__yandex-architecture-sso.code-workspace

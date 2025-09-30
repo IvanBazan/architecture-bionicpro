@@ -1,7 +1,7 @@
 import React from 'react';
 import { ReactKeycloakProvider } from '@react-keycloak/web';
 import Keycloak, { KeycloakConfig, KeycloakInitOptions } from 'keycloak-js';
-import ReportPage from './components/ReportPage';
+import { ReportPage } from './components/ReportPage/ReportPage';
 
 const keycloakConfig: KeycloakConfig = {
   url: process.env.REACT_APP_KEYCLOAK_URL,

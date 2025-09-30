@@ -1,10 +1,11 @@
 from flask import Flask, jsonify, request
 from clickhouse_driver import Client
+from flask_cors import CORS
 import jwt
 from functools import wraps
 
 app = Flask(__name__)
-
+CORS(app)
 
 JWKS_URL = "http://keycloak:8080/realms/reports-realm/protocol/openid-connect/certs"
 jwks_client = jwt.PyJWKClient(JWKS_URL)
@@ -124,4 +125,4 @@ def health_check():
 init_clickhouse()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)

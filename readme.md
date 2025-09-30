@@ -211,3 +211,14 @@ $ docker-compose logs airflow-webserver | grep "Simple auth"
 
 подробности реализации:
 [Реализация reportService](reportSystem\reportService\app.py)
+
+## Задача 5. Добавьте в UI кнопку получения отчёта и вызова эндпоинта его генерации.
+
+**Решение**:
+
+- доработан **reportService** для работы с CORS (стоит по умолчанию wildcard)
+- переработан frontend:
+  - отображение вошедшего пользователя
+  - отображение персональных данных и отчета по нажатию на кнопку   
+
+доступен на `http://localhost:3000/`
